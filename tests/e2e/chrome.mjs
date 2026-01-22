@@ -15,11 +15,36 @@ if (!extPath || !fs.existsSync(extPath)) {
 }
 
 const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "ipvfoo-chrome-"));
+const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "ipvfoo-chrome-home-"));
+const crashpadDir = path.join(userDataDir, "crashpad");
+fs.mkdirSync(crashpadDir, { recursive: true });
+let executablePath = chromium.executablePath();
+if (process.platform === "darwin") {
+  const systemChrome = process.env.CHROME_EXECUTABLE || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+  if (fs.existsSync(systemChrome)) {
+    executablePath = systemChrome;
+  }
+}
+if (!fs.existsSync(executablePath) && process.platform === "darwin" && process.arch === "arm64") {
+  const fallback = executablePath.replace("chrome-mac-x64", "chrome-mac-arm64");
+  if (fs.existsSync(fallback)) {
+    executablePath = fallback;
+  }
+}
 const context = await chromium.launchPersistentContext(userDataDir, {
   headless: false,
+  executablePath,
+  env: {
+    ...process.env,
+    HOME: homeDir,
+  },
   args: [
     `--disable-extensions-except=${extPath}`,
     `--load-extension=${extPath}`,
+    "--disable-crash-reporter",
+    "--disable-crashpad",
+    "--disable-features=Crashpad,CrashpadReporting",
+    `--crash-dumps-dir=${crashpadDir}`,
   ],
 });
 
