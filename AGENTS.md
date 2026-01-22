@@ -4,7 +4,7 @@
 - `src/` holds the extension source (background, popup/options UI, utility JS, and images).
 - `src/manifest/` contains per-browser and per-manifest-version manifests (MV2/MV3).
 - `build/` is the output directory for packaged ZIP/XPI artifacts.
-- `tests/` contains browser-based tests (see `tests/iputil_test.html`).
+- `tests/` contains unit tests, browser-based tests, and e2e scripts.
 - `misc/` stores screenshots and project assets used in documentation.
 
 ## Build, Test, and Development Commands
@@ -14,6 +14,7 @@
 - Chrome builds also emit an unpacked directory for loading (`UNPACKED=0` disables).
 - `make all`: build both MV2 and MV3 for the selected browser.
 - `make clean`: remove `build/` outputs.
+- `npm install`: install dev dependencies for unit/e2e tests.
 
 Example: `make mv3` writes `build/ipvfoo-<version>-mv3.zip` and `build/ipvfoo-<version>-mv3-unpacked/`.
 
@@ -24,9 +25,10 @@ Example: `make mv3` writes `build/ipvfoo-<version>-mv3.zip` and `build/ipvfoo-<v
 - No automated formatter or linter is configured; keep changes consistent with existing style.
 
 ## Testing Guidelines
-- Tests are browser-run via `tests/iputil_test.html` (TinyTest + `src/iputil.js`).
-- Open the HTML file in a browser and check the console for pass/fail output.
-- New unit tests should be added to `tests/iputil_test.html` with descriptive names like `valid_ipv6`.
+- Unit tests: `npm run test:unit` (Node + JSDOM + c8 coverage, 100% threshold for `src/iputil.js`, `src/common.js`, `src/options.js`, `src/popup.js`).
+- E2E: `npm run test:e2e:chrome` and `npm run test:e2e:firefox` (extension loaded in Chromium/Firefox).
+- Legacy browser-only tests: `tests/iputil_test.html` (TinyTest) still available for quick manual checks.
+- Playwright requires browser installs: `npx playwright install` (once).
 
 ## Commit & Pull Request Guidelines
 - Commit messages are short, imperative sentences (e.g., “Update README.md”).

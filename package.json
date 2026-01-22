@@ -1,0 +1,20 @@
+{
+  "name": "ipvfoo",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "make all",
+    "test:unit": "c8 --all --100 --include src/iputil.js --include src/common.js --include src/options.js --include src/popup.js --reporter=text --reporter=lcov node --test tests/unit/*.test.js",
+    "test:e2e:chrome": "node tests/e2e/chrome.mjs",
+    "test:e2e:firefox": "node tests/e2e/firefox.mjs",
+    "test:e2e": "npm run test:e2e:chrome && npm run test:e2e:firefox",
+    "test": "npm run test:unit && npm run test:e2e"
+  },
+  "devDependencies": {
+    "c8": "^9.1.0",
+    "geckodriver": "^5.0.0",
+    "jsdom": "^24.0.0",
+    "playwright": "^1.42.0",
+    "selenium-webdriver": "^4.18.1"
+  }
+}
