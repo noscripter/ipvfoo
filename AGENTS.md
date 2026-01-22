@@ -14,7 +14,7 @@
 - `make all`: build all four packages.
 - `make clean`: remove `build/` outputs.
 
-Example: `make chrome-mv2` writes `build/ipvfoo-<version>-mv2.zip`.
+Example: `make chrome-mv2` writes `build/ipvfoo-<version>-chrome-mv2.zip`.
 
 ## Coding Style & Naming Conventions
 - JavaScript uses `"use strict"`, 2‑space indentation, and semicolons.
