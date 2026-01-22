@@ -9,12 +9,12 @@
 
 ## Build, Test, and Development Commands
 - `make prepare`: verifies `src/manifest.json` matches a known manifest and creates `build/`.
-- `make chrome` / `make firefox`: build MV3 Chrome ZIP or Firefox XPI.
-- `make chrome-mv2` / `make firefox-mv2`: build MV2 Chrome ZIP or Firefox XPI.
-- `make all`: build all four packages.
+- `make mv3`: build the MV3 package (default `BROWSER=chrome`).
+- `make mv2`: build the MV2 package (default `BROWSER=chrome`).
+- `make all`: build both MV2 and MV3 for the selected browser.
 - `make clean`: remove `build/` outputs.
 
-Example: `make chrome-mv2` writes `build/ipvfoo-<version>-chrome-mv2.zip`.
+Example: `make mv2 BROWSER=firefox` writes `build/ipvfoo-<version>-mv2.xpi`.
 
 ## Coding Style & Naming Conventions
 - JavaScript uses `"use strict"`, 2‑space indentation, and semicolons.

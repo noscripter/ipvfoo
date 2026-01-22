@@ -6,17 +6,28 @@ MANIFEST_C := src/manifest/chrome-manifest.json
 MANIFEST_F2 := src/manifest/firefox-manifest-mv2.json
 MANIFEST_C2 := src/manifest/chrome-manifest-mv2.json
 version_from = $(shell sed -n 's/^ *"version": *"\\([0-9.]\\+\\)".*/\\1/p' $(1) | head -n1)
-VERSION_F := $(call version_from,${MANIFEST_F})
-VERSION_C := $(call version_from,${MANIFEST_C})
-VERSION_F2 := $(call version_from,${MANIFEST_F2})
-VERSION_C2 := $(call version_from,${MANIFEST_C2})
 
-FIREFOX_MV3_OUT := ${BUILDDIR}/${NAME}-${VERSION_F}-firefox-mv3.xpi
-CHROME_MV3_OUT := ${BUILDDIR}/${NAME}-${VERSION_C}-chrome-mv3.zip
-FIREFOX_MV2_OUT := ${BUILDDIR}/${NAME}-${VERSION_F2}-firefox-mv2.xpi
-CHROME_MV2_OUT := ${BUILDDIR}/${NAME}-${VERSION_C2}-chrome-mv2.zip
+BROWSER ?= chrome
 
-all: prepare firefox chrome firefox-mv2 chrome-mv2
+ifeq ($(BROWSER),firefox)
+MANIFEST_MV3 := ${MANIFEST_F}
+MANIFEST_MV2 := ${MANIFEST_F2}
+PKG_EXT := xpi
+else ifeq ($(BROWSER),chrome)
+MANIFEST_MV3 := ${MANIFEST_C}
+MANIFEST_MV2 := ${MANIFEST_C2}
+PKG_EXT := zip
+else
+$(error BROWSER must be chrome or firefox)
+endif
+
+VERSION_MV3 := $(call version_from,${MANIFEST_MV3})
+VERSION_MV2 := $(call version_from,${MANIFEST_MV2})
+
+MV3_OUT := ${BUILDDIR}/${NAME}-${VERSION_MV3}-mv3.${PKG_EXT}
+MV2_OUT := ${BUILDDIR}/${NAME}-${VERSION_MV2}-mv2.${PKG_EXT}
+
+all: prepare mv3 mv2
 
 define build_pack
 	rm -f $(1)
@@ -24,7 +35,7 @@ define build_pack
 	zip -9j $(1) src/*
 endef
 
-.PHONY: all prepare firefox chrome firefox-mv2 chrome-mv2 clean
+.PHONY: all prepare mv3 mv2 clean
 
 prepare:
 	@diff ${MANIFEST} ${MANIFEST_F} >/dev/null || \
@@ -35,17 +46,11 @@ prepare:
 	rm -rf ${BUILDDIR}
 	mkdir -p ${BUILDDIR}
 
-firefox: prepare
-	$(call build_pack,${FIREFOX_MV3_OUT},${MANIFEST_F})
+mv3: prepare
+	$(call build_pack,${MV3_OUT},${MANIFEST_MV3})
 
-chrome: prepare
-	$(call build_pack,${CHROME_MV3_OUT},${MANIFEST_C})
-
-firefox-mv2: prepare
-	$(call build_pack,${FIREFOX_MV2_OUT},${MANIFEST_F2})
-
-chrome-mv2: prepare
-	$(call build_pack,${CHROME_MV2_OUT},${MANIFEST_C2})
+mv2: prepare
+	$(call build_pack,${MV2_OUT},${MANIFEST_MV2})
 
 clean:
 	rm -rf ${BUILDDIR}
