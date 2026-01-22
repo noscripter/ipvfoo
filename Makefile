@@ -5,7 +5,7 @@ MANIFEST_F := src/manifest/firefox-manifest.json
 MANIFEST_C := src/manifest/chrome-manifest.json
 MANIFEST_F2 := src/manifest/firefox-manifest-mv2.json
 MANIFEST_C2 := src/manifest/chrome-manifest-mv2.json
-version_from = $(shell sed -n 's/^ *"version": *"\([0-9.]\+\)".*/\1/p' $(1) | head -n1)
+version_from = $(shell awk -F'"' '/"version"/{print $$4; exit}' $(1))
 
 BROWSER ?= chrome
 ifeq ($(BROWSER),chrome)
@@ -60,6 +60,22 @@ mv3: prepare
 		mkdir -p ${MV3_UNPACKED}; \
 		cp -R src/* ${MV3_UNPACKED}/; \
 	fi
+	@ok=1; \
+	if [ -f "${MV3_OUT}" ]; then \
+		printf "\033[32mOK\033[0m  %s\n" "${MV3_OUT}"; \
+	else \
+		printf "\033[31mFAIL\033[0m missing %s\n" "${MV3_OUT}"; \
+		ok=0; \
+	fi; \
+	if [ "$(UNPACKED)" != "0" ]; then \
+		if [ -d "${MV3_UNPACKED}" ]; then \
+			printf "\033[32mOK\033[0m  %s/\n" "${MV3_UNPACKED}"; \
+		else \
+			printf "\033[31mFAIL\033[0m missing %s/\n" "${MV3_UNPACKED}"; \
+			ok=0; \
+		fi; \
+	fi; \
+	if [ $$ok -ne 1 ]; then exit 1; fi
 
 mv2: prepare
 	$(call build_pack,${MV2_OUT},${MANIFEST_MV2})
@@ -68,6 +84,22 @@ mv2: prepare
 		mkdir -p ${MV2_UNPACKED}; \
 		cp -R src/* ${MV2_UNPACKED}/; \
 	fi
+	@ok=1; \
+	if [ -f "${MV2_OUT}" ]; then \
+		printf "\033[32mOK\033[0m  %s\n" "${MV2_OUT}"; \
+	else \
+		printf "\033[31mFAIL\033[0m missing %s\n" "${MV2_OUT}"; \
+		ok=0; \
+	fi; \
+	if [ "$(UNPACKED)" != "0" ]; then \
+		if [ -d "${MV2_UNPACKED}" ]; then \
+			printf "\033[32mOK\033[0m  %s/\n" "${MV2_UNPACKED}"; \
+		else \
+			printf "\033[31mFAIL\033[0m missing %s/\n" "${MV2_UNPACKED}"; \
+			ok=0; \
+		fi; \
+	fi; \
+	if [ $$ok -ne 1 ]; then exit 1; fi
 
 clean:
 	rm -rf ${BUILDDIR}
