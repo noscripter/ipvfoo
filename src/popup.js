@@ -40,7 +40,7 @@ window.onload = async function() {
 };
 
 async function beg() {
-  const p = await chrome.permissions.getAll();
+  const p = await chromeAsync(chrome.permissions.getAll);
   for (const origin of p.origins) {
     if (origin == ALL_URLS) {
       return;  // We already have permission.
@@ -52,7 +52,7 @@ async function beg() {
     // We need to close the popup before awaiting, otherwise
     // Firefox (at least version 116 on Windows) renders the
     // permission dialog underneath the popup.
-    const promise = chrome.permissions.request({origins: [ALL_URLS]});
+    const promise = chromeAsync(chrome.permissions.request, {origins: [ALL_URLS]});
     window.close();
     await promise;
   });

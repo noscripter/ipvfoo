@@ -18,6 +18,25 @@ limitations under the License.
 
 // Requires <script src="iputil.js">
 
+const MANIFEST_VERSION = chrome.runtime.getManifest().manifest_version;
+const USE_CALLBACKS = MANIFEST_VERSION === 2;
+
+function chromeAsync(fn, ...args) {
+  if (!USE_CALLBACKS) {
+    return fn(...args);
+  }
+  return new Promise((resolve, reject) => {
+    fn(...args, (result) => {
+      const err = chrome.runtime.lastError;
+      if (err) {
+        reject(err);
+      } else {
+        resolve(result);
+      }
+    });
+  });
+}
+
 // Flags are bitwise-OR'd across all connections to a domain.
 const FLAG_SSL = 0x1;
 const FLAG_NOSSL = 0x2;
@@ -185,7 +204,7 @@ const optionsReady = (async function() {
     options[option] = value;
     optionsDirty[option] = 0;
   }
-  const items = await chrome.storage.sync.get();
+  const items = await chromeAsync(chrome.storage.sync.get);
   for (const [option, value] of Object.entries(items)) {
     if (DEFAULT_OPTIONS.hasOwnProperty(option)) {
       options[option] = value;
