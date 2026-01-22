@@ -37,6 +37,8 @@ function chromeAsync(fn, ...args) {
   });
 }
 
+let optionsStorage = chrome.storage.sync;
+
 // Flags are bitwise-OR'd across all connections to a domain.
 const FLAG_SSL = 0x1;
 const FLAG_NOSSL = 0x2;
@@ -204,7 +206,14 @@ const optionsReady = (async function() {
     options[option] = value;
     optionsDirty[option] = 0;
   }
-  const items = await chromeAsync(chrome.storage.sync.get);
+  let items = null;
+  try {
+    items = await chromeAsync(chrome.storage.sync.get);
+  } catch (err) {
+    console.warn("storage.sync unavailable; falling back to storage.local", err);
+    optionsStorage = chrome.storage.local;
+    items = await chromeAsync(optionsStorage.get);
+  }
   for (const [option, value] of Object.entries(items)) {
     if (DEFAULT_OPTIONS.hasOwnProperty(option)) {
       options[option] = value;
@@ -214,9 +223,11 @@ const optionsReady = (async function() {
   }
   options.ready = true;
   _watchOptionsFunc?.(Object.keys(options));
+
+  optionsStorage.onChanged.addListener(handleOptionsChanged);
 })();
 
-chrome.storage.sync.onChanged.addListener(function(changes) {
+function handleOptionsChanged(changes) {
   // changes = {option: {oldValue: x, newValue: y}}
   if (!options.ready) return;
   const optionsChanged = [];
@@ -248,7 +259,7 @@ chrome.storage.sync.onChanged.addListener(function(changes) {
   if (optionsChanged.length) {
     _watchOptionsFunc?.(optionsChanged);
   }
-});
+}
 
 function watchOptions(f) {
   if (_watchOptionsFunc) throw "redundant watchOptions!";
@@ -274,26 +285,30 @@ function setOptions(newOptions) {
       }
     }
   }
-  const doSet = () => {
+  const doSet = async () => {
     if (Object.keys(toSet).length == 0) {
       return;  // no change
     }
-    chrome.storage.sync.set(toSet, () => {
-      for (const [option, value] of Object.entries(toSet)) {
-        const dirty = optionsDirty[option];
-        if (dirty > 1 && value != options[option]) {
-          // user changed the value mid-write; push the latest value.
-          toSet[option] = options[option];
-          optionsDirty[option] = 1;
-        } else {
-          delete toSet[option];
-          optionsDirty[option] = 0;
-        }
+    try {
+      await chromeAsync(optionsStorage.set, toSet);
+    } catch (err) {
+      console.warn("setOptions failed", err);
+      return;
+    }
+    for (const [option, value] of Object.entries(toSet)) {
+      const dirty = optionsDirty[option];
+      if (dirty > 1 && value != options[option]) {
+        // user changed the value mid-write; push the latest value.
+        toSet[option] = options[option];
+        optionsDirty[option] = 1;
+      } else {
+        delete toSet[option];
+        optionsDirty[option] = 0;
       }
-      doSet();
-    });
+    }
+    return doSet();
   };
-  doSet();
+  void doSet();
   if (optionsChanged.length) {
     _watchOptionsFunc?.(optionsChanged);
   }
@@ -316,7 +331,9 @@ function addPackedNAT64(packed96) {
   const key = NAT64_KEY + packed96;
   if (!NAT64_VALIDATE.test(key)) throw "invalid packed96"
   options[NAT64_KEY].add(packed96);
-  chrome.storage.sync.set({[key]: 1});
+  chromeAsync(optionsStorage.set, {[key]: 1}).catch((err) => {
+    console.warn("failed to persist NAT64 prefix", err);
+  });
   // NAT64 changes are reported synchronously.  When onChanged fires,
   // our local Set is used for deduplication.
   _watchOptionsFunc?.([NAT64_KEY]);
@@ -331,7 +348,9 @@ function revertNAT64() {
   }
   options[NAT64_KEY] = new Set(NAT64_DEFAULTS);
   if (toRemove.length) {
-    chrome.storage.sync.remove(toRemove);
+    chromeAsync(optionsStorage.remove, toRemove).catch((err) => {
+      console.warn("failed to remove NAT64 prefixes", err);
+    });
     // NAT64 changes are reported synchronously.  When onChanged fires,
     // our local Set is used for deduplication.
     _watchOptionsFunc?.([NAT64_KEY]);
