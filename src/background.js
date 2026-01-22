@@ -186,7 +186,7 @@ class SaveableEntry {
       this.#dirty = false;
       const key = `${this.#prefix}${this.#id}`
       if (this.#remove) {
-        await chromeAsync(sessionStore.remove, key);
+        await chromeAsync(sessionStore.remove.bind(sessionStore), key);
         return;
       }
       const j = JSON.stringify(this);
@@ -194,7 +194,7 @@ class SaveableEntry {
         return;
       }
       //console.log("saving", key, j);
-      await chromeAsync(sessionStore.set, {[key]: j});
+      await chromeAsync(sessionStore.set.bind(sessionStore), {[key]: j});
       this.#savedJSON = j;
     }
   }
@@ -668,7 +668,7 @@ if (typeof window !== 'undefined' && window.matchMedia) {
   initDarkMode = (async () => {
     const p = new Promise((resolve) => {darkMode.resolve = resolve});
     try {
-      await chromeAsync(chrome.offscreen.createDocument, {
+      await chromeAsync(chrome.offscreen.createDocument.bind(chrome.offscreen), {
         url: "detectdarkmode.html",
         reasons: ['MATCH_MEDIA'],
         justification: 'detect light/dark mode for icon colors',
@@ -680,7 +680,7 @@ if (typeof window !== 'undefined' && window.matchMedia) {
     // The offscreen document can't provide darkMode updates, so kill it now.
     // We will get updates from the popup/option windows instead.
     try {
-      await chromeAsync(chrome.offscreen.closeDocument);
+      await chromeAsync(chrome.offscreen.closeDocument.bind(chrome.offscreen));
     } catch {
       // ignore
     }
@@ -724,12 +724,12 @@ const initStorage = async () => {
 
   // Migrate previous-version data from local to session storage.
   if (HAS_STORAGE_SESSION) {
-    const oldItems = await chromeAsync(chrome.storage.local.get);
+    const oldItems = await chromeAsync(chrome.storage.local.get.bind(chrome.storage.local));
     for (const [k, v] of Object.entries(oldItems)) {
       if (k.startsWith("tab/") || k.startsWith("req/")) {
         console.log(`migrating ${k} to storage.session`);
-        await chromeAsync(sessionStore.set, {[k]: v});
-        await chromeAsync(chrome.storage.local.remove, k);
+        await chromeAsync(sessionStore.set.bind(sessionStore), {[k]: v});
+        await chromeAsync(chrome.storage.local.remove.bind(chrome.storage.local), k);
       }
     }
   }
@@ -739,7 +739,7 @@ const initStorage = async () => {
   clearMap(requestMap);
   if (ipCache) clearMap(ipCache);
 
-  const items = await chromeAsync(sessionStore.get);
+  const items = await chromeAsync(sessionStore.get.bind(sessionStore));
   const unparseable = [];
   for (const [k, v] of Object.entries(items)) {
     if (!(tabMap.load(k, v) || requestMap.load(k, v) || ipCache?.load(k, v))) {
@@ -882,7 +882,7 @@ class TabTracker {
   async #pollAllTabs() {
     await storageReady;  // load 'born' timestamps first.
     while (true) {
-      const result = await chromeAsync(chrome.tabs.query, {});
+      const result = await chromeAsync(chrome.tabs.query.bind(chrome.tabs), {});
       this.tabSet = newMap();
       for (const tab of result) {
         this.#addTab(tab.id, "pollAlltabs")

@@ -208,11 +208,11 @@ const optionsReady = (async function() {
   }
   let items = null;
   try {
-    items = await chromeAsync(chrome.storage.sync.get);
+    items = await chromeAsync(chrome.storage.sync.get.bind(chrome.storage.sync));
   } catch (err) {
     console.warn("storage.sync unavailable; falling back to storage.local", err);
     optionsStorage = chrome.storage.local;
-    items = await chromeAsync(optionsStorage.get);
+    items = await chromeAsync(optionsStorage.get.bind(optionsStorage));
   }
   for (const [option, value] of Object.entries(items)) {
     if (DEFAULT_OPTIONS.hasOwnProperty(option)) {
@@ -290,7 +290,7 @@ function setOptions(newOptions) {
       return;  // no change
     }
     try {
-      await chromeAsync(optionsStorage.set, toSet);
+      await chromeAsync(optionsStorage.set.bind(optionsStorage), toSet);
     } catch (err) {
       console.warn("setOptions failed", err);
       return;
@@ -331,7 +331,7 @@ function addPackedNAT64(packed96) {
   const key = NAT64_KEY + packed96;
   if (!NAT64_VALIDATE.test(key)) throw "invalid packed96"
   options[NAT64_KEY].add(packed96);
-  chromeAsync(optionsStorage.set, {[key]: 1}).catch((err) => {
+  chromeAsync(optionsStorage.set.bind(optionsStorage), {[key]: 1}).catch((err) => {
     console.warn("failed to persist NAT64 prefix", err);
   });
   // NAT64 changes are reported synchronously.  When onChanged fires,
@@ -348,7 +348,7 @@ function revertNAT64() {
   }
   options[NAT64_KEY] = new Set(NAT64_DEFAULTS);
   if (toRemove.length) {
-    chromeAsync(optionsStorage.remove, toRemove).catch((err) => {
+    chromeAsync(optionsStorage.remove.bind(optionsStorage), toRemove).catch((err) => {
       console.warn("failed to remove NAT64 prefixes", err);
     });
     // NAT64 changes are reported synchronously.  When onChanged fires,
