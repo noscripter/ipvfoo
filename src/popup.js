@@ -28,10 +28,16 @@ if (!isFinite(Number(tabId))) {
 }
 
 let table = null;
+let providerSection = null;
+let providerTitle = null;
+let providerTable = null;
 
 window.onload = async function() {
   table = document.getElementById("addr_table");
   table.onmousedown = handleMouseDown;
+  providerSection = document.getElementById("provider_section");
+  providerTitle = document.getElementById("provider_title");
+  providerTable = document.getElementById("provider_table");
   await beg();
   if (IS_MOBILE) {
     document.getElementById("mobile_footer").style.display = "flex";
@@ -72,6 +78,8 @@ function connectToExtension() {
         return pushPattern(msg.pattern);
       case "pushSpillCount":
         return pushSpillCount(msg.spillCount);
+      case "pushProvider":
+        return pushProvider(msg.info);
       case "shake":
         return shake();
     }
@@ -81,6 +89,8 @@ function connectToExtension() {
     document.bgColor = "lightpink";
     setTimeout(connectToExtension, 1);
   });
+
+  port.postMessage({cmd: "requestProvider"});
 }
 
 // Clear the table, and fill it with new data.
@@ -149,6 +159,28 @@ function pushSpillCount(count) {
     zoomHack();
   } else {
     scrollbarHack();
+  }
+}
+
+function pushProvider(info) {
+  if (!info || !info.rows || info.rows.length == 0) {
+    providerSection.style.display = "none";
+    return;
+  }
+  providerSection.style.display = "block";
+  providerTitle.textContent = info.title || "Provider";
+  removeChildren(providerTable);
+  for (const [label, value] of info.rows) {
+    const tr = document.createElement("tr");
+    const tdLabel = document.createElement("td");
+    const tdValue = document.createElement("td");
+    tdLabel.className = "provider_label";
+    tdValue.className = "provider_value";
+    tdLabel.textContent = label;
+    tdValue.textContent = value;
+    tr.appendChild(tdLabel);
+    tr.appendChild(tdValue);
+    providerTable.appendChild(tr);
   }
 }
 

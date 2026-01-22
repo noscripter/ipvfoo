@@ -84,6 +84,24 @@ img::selection {
   float: left;
   padding: 6px;
 }
+.provider_table {
+  background-image: none;
+}
+.provider_label {
+  color: #505050;
+  user-select: text;
+}
+.provider_value {
+  font-family: monospace;
+  user-select: text;
+}
+#provider_section {
+  margin-top: 8px;
+}
+#provider_title {
+  font-weight: bold;
+  margin: 6px 0;
+}
 
 .snippedTextInvisible {
   /* When JS removes this style, the snipped text becomes visible. */
@@ -158,6 +176,9 @@ img::selection {
   .highlight {
     background-color: #505030;
   }
+  .provider_label {
+    color: #b0b0b0;
+  }
   #pattern_icon_darkfg {
     display: none;
   }
@@ -193,6 +214,10 @@ img::selection {
   <table id="addr_table" height="1px"></table>
   <div id="spill_count_container">
   &#x22ee; <span id="spill_count">0</span> requests omitted
+  </div>
+  <div id="provider_section" style="display:none">
+    <div id="provider_title">Provider</div>
+    <table id="provider_table" class="provider_table"></table>
   </div>
   <div id="mobile_footer">
     <div id="options_link"><a href="options.html">Options</a></div>

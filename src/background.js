@@ -814,6 +814,13 @@ class Popups {
     });
   };
 
+  pushProvider(tabId, info) {
+    this.ports[tabId]?.postMessage({
+      cmd: "pushProvider",
+      info: info,
+    });
+  };
+
   shake(tabId) {
     this.ports[tabId]?.postMessage({
       cmd: "shake",
@@ -823,9 +830,57 @@ class Popups {
 
 const popups = new Popups();
 
+const PROVIDER_CACHE_MS = 300 * SECONDS;
+let providerCache = {time: 0, providerId: null, metricsKey: "", info: null};
+
+async function getProviderPopupInfo() {
+  await optionsReady;
+  const metrics = parseMetricSelection(options.providerMetrics);
+  if (metrics.length == 0) {
+    return null;  // default: no extra display
+  }
+  const providerId = options.providerId || DEFAULT_OPTIONS.providerId;
+  const now = Date.now();
+  if (providerCache.info &&
+      providerCache.providerId == providerId &&
+      providerCache.metricsKey == options.providerMetrics &&
+      (now - providerCache.time) < PROVIDER_CACHE_MS) {
+    return providerCache.info;
+  }
+  const result = await fetchProviderInfo(providerId);
+  let info = null;
+  if (result.error) {
+    info = {title: `${result.providerName} error`, rows: [["Error", result.error]]};
+  } else {
+    const rows = formatProviderRows(result.metrics, metrics);
+    if (rows.length) {
+      info = {title: result.providerName, rows: rows};
+    } else {
+      info = {title: result.providerName, rows: [["Error", "No data"]]};
+    }
+  }
+  providerCache = {
+    time: now,
+    providerId: providerId,
+    metricsKey: options.providerMetrics,
+    info: info,
+  };
+  return info;
+}
+
+async function sendProviderInfo(tabId) {
+  const info = await getProviderPopupInfo();
+  popups.pushProvider(tabId, info);
+}
+
 chrome.runtime.onConnect.addListener(wrap(async (port) => {
   await storageReady;
   popups.attachPort(port);
+  port.onMessage.addListener((msg) => {
+    if (msg?.cmd == "requestProvider") {
+      sendProviderInfo(port.name);
+    }
+  });
   port.onDisconnect.addListener(() => {
     popups.detachPort(port);
   });

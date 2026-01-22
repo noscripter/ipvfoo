@@ -18,8 +18,125 @@ limitations under the License.
 
 // Requires <script src="common.js">
 
+let providerSelect = null;
+let providerUrl = null;
+let providerMetricsBox = null;
+let providerTestBtn = null;
+let providerTestStatus = null;
+let providerTestTable = null;
+
+function buildProviderSelect() {
+  for (const id of PROVIDER_ORDER) {
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = PROVIDERS[id].name;
+    providerSelect.appendChild(opt);
+  }
+}
+
+function buildMetricCheckboxes() {
+  for (const key of METRIC_ORDER) {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.dataset.metric = key;
+    label.appendChild(input);
+    label.appendChild(document.createTextNode(METRIC_LABELS[key] || key));
+    providerMetricsBox.appendChild(label);
+  }
+}
+
+function updateProviderUI(providerId) {
+  const provider = PROVIDERS[providerId];
+  providerUrl.textContent = provider ? provider.url : "";
+  const supported = new Set(providerMetricsFor(providerId));
+  for (const input of providerMetricsBox.querySelectorAll("input[type=\"checkbox\"]")) {
+    const key = input.dataset.metric;
+    if (!supported.has(key)) {
+      input.checked = false;
+      input.disabled = true;
+    } else {
+      input.disabled = false;
+    }
+  }
+}
+
+function getSelectedMetrics() {
+  const metrics = [];
+  for (const input of providerMetricsBox.querySelectorAll("input[type=\"checkbox\"]")) {
+    if (input.checked && !input.disabled) {
+      metrics.push(input.dataset.metric);
+    }
+  }
+  return metrics;
+}
+
+function setSelectedMetrics(selection) {
+  const selected = new Set(parseMetricSelection(selection));
+  for (const input of providerMetricsBox.querySelectorAll("input[type=\"checkbox\"]")) {
+    if (input.disabled) {
+      input.checked = false;
+    } else {
+      input.checked = selected.has(input.dataset.metric);
+    }
+  }
+}
+
+function renderProviderTest(result) {
+  removeChildren(providerTestTable);
+  if (!result) {
+    providerTestStatus.textContent = "No result";
+    providerTestStatus.style.color = "#800000";
+    return;
+  }
+  if (result.error) {
+    providerTestStatus.textContent = `Error: ${result.error}`;
+    providerTestStatus.style.color = "#800000";
+    return;
+  }
+  providerTestStatus.textContent = `OK: ${result.providerName}`;
+  providerTestStatus.style.color = "#008000";
+  const order = providerMetricsFor(result.providerId);
+  const rows = formatProviderRows(result.metrics, order);
+  for (const [label, value] of rows) {
+    const tr = document.createElement("tr");
+    const tdLabel = document.createElement("td");
+    const tdValue = document.createElement("td");
+    tdLabel.textContent = label;
+    tdValue.textContent = value;
+    tr.appendChild(tdLabel);
+    tr.appendChild(tdValue);
+    providerTestTable.appendChild(tr);
+  }
+}
+
+async function runProviderTest() {
+  const providerId = providerSelect.value;
+  providerTestStatus.textContent = "Testing...";
+  providerTestStatus.style.color = "#444";
+  const result = await fetchProviderInfo(providerId);
+  renderProviderTest(result);
+}
+
 window.onload = async () => {
   await spriteImgReady;
+
+  providerSelect = document.getElementById("provider_select");
+  providerUrl = document.getElementById("provider_url");
+  providerMetricsBox = document.getElementById("provider_metric_choices");
+  providerTestBtn = document.getElementById("provider_test_btn");
+  providerTestStatus = document.getElementById("provider_test_status");
+  providerTestTable = document.getElementById("provider_test_table");
+
+  buildProviderSelect();
+  buildMetricCheckboxes();
+  providerSelect.onchange = function() {
+    updateProviderUI(providerSelect.value);
+    document.optionsForm.onchange();
+  };
+  providerMetricsBox.addEventListener("change", function() {
+    document.optionsForm.onchange();
+  });
 
   for (const option of Object.keys(DEFAULT_OPTIONS)) {
     if (!option.endsWith("ColorScheme")) continue;
@@ -45,8 +162,15 @@ window.onload = async () => {
   watchOptions(function(optionsChanged) {
     for (const option of optionsChanged) {
       if (DEFAULT_OPTIONS.hasOwnProperty(option)) {
-        const radio = document.optionsForm[option];
-        radio.value = options[option];
+        if (option == "providerId") {
+          providerSelect.value = options[option];
+          updateProviderUI(options[option]);
+        } else if (option == "providerMetrics") {
+          setSelectedMetrics(options[option]);
+        } else {
+          const radio = document.optionsForm[option];
+          radio.value = options[option];
+        }
       } else if (option == NAT64_KEY) {
         const table = document.getElementById("nat64");
         removeChildren(table);
@@ -64,9 +188,19 @@ window.onload = async () => {
   document.optionsForm.onchange = function(evt) {
     const newOptions = {};
     for (const option of Object.keys(DEFAULT_OPTIONS)) {
-      newOptions[option] = document.optionsForm[option].value;
+      if (option == "providerId") {
+        newOptions[option] = providerSelect.value;
+      } else if (option == "providerMetrics") {
+        newOptions[option] = getSelectedMetrics().join(",");
+      } else {
+        newOptions[option] = document.optionsForm[option].value;
+      }
     }
     setOptions(newOptions);
+  };
+
+  providerTestBtn.onclick = function() {
+    runProviderTest();
   };
 
   document.getElementById("revert_btn").onclick = function() {

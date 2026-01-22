@@ -188,6 +188,8 @@ function drawSprite(ctx, size, targets, sources) {
 const DEFAULT_OPTIONS = {
   regularColorScheme: "auto",
   incognitoColorScheme: "lightfg",
+  providerId: "ipify",
+  providerMetrics: "",
 };
 
 const NAT64_KEY = "nat64/";
@@ -197,6 +199,186 @@ const NAT64_DEFAULTS = new Set([
   parseIP("64:ff9b::").slice(0, 96/4),   // RFC 6052
   parseIP("64:ff9b:1::").slice(0, 96/4), // RFC 8215
 ]);
+
+const METRIC_LABELS = {
+  ip: "Public IP",
+  country: "Country",
+  country_code: "Country Code",
+  region: "Region",
+  city: "City",
+  org: "Organization",
+  asn: "ASN",
+  isp: "ISP",
+  timezone: "Timezone",
+  latitude: "Latitude",
+  longitude: "Longitude",
+  continent: "Continent",
+  postal_code: "Postal Code",
+};
+
+const METRIC_ORDER = Object.keys(METRIC_LABELS);
+
+function extractIP(text) {
+  if (!text) return null;
+  const parts = text.match(/[0-9A-Fa-f:.]+/g) || [];
+  for (const part of parts) {
+    try {
+      parseIP(part);
+      return part;
+    } catch {
+      // keep searching
+    }
+  }
+  return null;
+}
+
+const PROVIDERS = {
+  ipify: {
+    name: "ipify",
+    url: "https://api.ipify.org?format=json",
+    response: "json",
+    metrics: ["ip"],
+    parse: (data) => ({ip: data?.ip}),
+  },
+  iplocate: {
+    name: "IPLocate",
+    url: "https://api.iplocate.io/json",
+    response: "json",
+    metrics: [
+      "ip",
+      "country",
+      "country_code",
+      "region",
+      "city",
+      "org",
+      "asn",
+      "isp",
+      "timezone",
+      "latitude",
+      "longitude",
+      "continent",
+      "postal_code",
+    ],
+    parse: (data) => ({
+      ip: data?.ip,
+      country: data?.country,
+      country_code: data?.country_code,
+      region: data?.region || data?.state || data?.subdivision,
+      city: data?.city,
+      org: data?.org || data?.organization,
+      asn: data?.asn,
+      isp: data?.isp,
+      timezone: data?.timezone,
+      latitude: data?.latitude,
+      longitude: data?.longitude,
+      continent: data?.continent,
+      postal_code: data?.postal_code || data?.postal,
+    }),
+  },
+  iplocation: {
+    name: "iplocation.net (IPv4)",
+    url: "https://ipv4.iplocation.net",
+    response: "text",
+    metrics: ["ip"],
+    parse: (text) => ({ip: extractIP(text)}),
+  },
+  ip4only: {
+    name: "ip4only.me",
+    url: "https://ip4only.me/api/",
+    response: "text",
+    metrics: ["ip"],
+    parse: (text) => ({ip: extractIP(text)}),
+  },
+  opendns: {
+    name: "OpenDNS",
+    url: "https://myip.dnsomatic.com/",
+    response: "text",
+    metrics: ["ip"],
+    parse: (text) => ({ip: extractIP(text)}),
+  },
+};
+
+const PROVIDER_ORDER = Object.keys(PROVIDERS);
+
+function normalizeMetricSelection(value) {
+  if (Array.isArray(value)) {
+    return value.join(",");
+  }
+  if (typeof value == "string") {
+    return value;
+  }
+  return "";
+}
+
+function parseMetricSelection(value) {
+  if (!value) return [];
+  return value.split(",").map((v) => v.trim()).filter(Boolean);
+}
+
+function providerMetricsFor(providerId) {
+  return PROVIDERS[providerId]?.metrics || ["ip"];
+}
+
+function normalizeMetrics(metrics) {
+  const out = {};
+  for (const [key, value] of Object.entries(metrics || {})) {
+    if (value === null || value === undefined) continue;
+    const text = (typeof value == "string") ? value.trim() : String(value);
+    if (text === "") continue;
+    out[key] = text;
+  }
+  return out;
+}
+
+async function fetchProviderInfo(providerId) {
+  const providerKey = PROVIDERS[providerId] ? providerId : DEFAULT_OPTIONS.providerId;
+  const provider = PROVIDERS[providerKey];
+  if (!provider) {
+    return {providerId: providerId, providerName: "Unknown", error: "Unknown provider"};
+  }
+  let response = null;
+  let text = "";
+  try {
+    response = await fetch(provider.url, {cache: "no-store"});
+    text = await response.text();
+  } catch (err) {
+    return {providerId: providerKey, providerName: provider.name, error: String(err)};
+  }
+  if (!response.ok) {
+    return {
+      providerId: providerKey,
+      providerName: provider.name,
+      error: `HTTP ${response.status}`,
+    };
+  }
+  let data = text;
+  if (provider.response == "json") {
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
+      return {providerId: providerKey, providerName: provider.name, error: "Bad JSON"};
+    }
+  }
+  let metrics = {};
+  try {
+    metrics = provider.parse(data);
+  } catch (err) {
+    return {providerId: providerKey, providerName: provider.name, error: "Parse error"};
+  }
+  metrics = normalizeMetrics(metrics);
+  return {providerId: providerKey, providerName: provider.name, metrics: metrics};
+}
+
+function formatProviderRows(metrics, metricOrder) {
+  const rows = [];
+  for (const key of metricOrder) {
+    if (!metrics || !Object.prototype.hasOwnProperty.call(metrics, key)) {
+      continue;
+    }
+    rows.push([METRIC_LABELS[key] || key, metrics[key]]);
+  }
+  return rows;
+}
 
 let _watchOptionsFunc = null;
 const options = {ready: false, [NAT64_KEY]: new Set(NAT64_DEFAULTS)};
@@ -216,7 +398,11 @@ const optionsReady = (async function() {
   }
   for (const [option, value] of Object.entries(items)) {
     if (DEFAULT_OPTIONS.hasOwnProperty(option)) {
-      options[option] = value;
+      if (option == "providerMetrics") {
+        options[option] = normalizeMetricSelection(value);
+      } else {
+        options[option] = value;
+      }
     } else if (NAT64_VALIDATE.test(option)) {
       options[NAT64_KEY].add(option.slice(NAT64_KEY.length));
     }
@@ -233,7 +419,10 @@ function handleOptionsChanged(changes) {
   const optionsChanged = [];
   for (const [option, {oldValue, newValue}] of Object.entries(changes)) {
     if (DEFAULT_OPTIONS.hasOwnProperty(option)) {
-      const value = newValue || DEFAULT_OPTIONS[option];
+      let value = newValue || DEFAULT_OPTIONS[option];
+      if (option == "providerMetrics") {
+        value = normalizeMetricSelection(value);
+      }
       if (options[option] != value) {
         if (optionsDirty[option] > 1) {
           // Forget local changes that occurred mid-write.
@@ -273,7 +462,10 @@ function setOptions(newOptions) {
   const toSet = {};
   const optionsChanged = [];
   for (const option of Object.keys(DEFAULT_OPTIONS)) {
-    const value = newOptions[option];
+    let value = newOptions[option];
+    if (option == "providerMetrics") {
+      value = normalizeMetricSelection(value);
+    }
     if (options[option] != value) {
       options[option] = value;
       optionsChanged.push(option);

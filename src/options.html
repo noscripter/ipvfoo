@@ -74,6 +74,23 @@ limitations under the License.
   .colorscheme_title {
     font-weight: bold;
   }
+  #provider_metric_choices label {
+    display: inline-flex;
+    margin-right: 10px;
+    margin-top: 6px;
+  }
+  .provider_hint {
+    margin-top: 6px;
+    color: #666;
+    font-family: monospace;
+  }
+  #provider_test_status {
+    margin-top: 6px;
+    font-weight: bold;
+  }
+  #provider_test_table td {
+    white-space: normal;
+  }
 
   /* dark mode */
   @media (prefers-color-scheme: dark) {
@@ -86,6 +103,9 @@ limitations under the License.
     }
     #nat64 table, #nat64 td, #nat64 tr {
       color: #ff8080;
+    }
+    .provider_hint {
+      color: #aaa;
     }
   }
   </style>
@@ -148,6 +168,26 @@ limitations under the License.
   <br>
   Note that popups use the system light/dark theme.
   <br><br>
+
+  <h1>Public IP provider</h1>
+  <table>
+    <tr>
+      <td class="colorscheme_title">Provider:</td>
+      <td>
+        <select id="provider_select" name="providerId"></select>
+      </td>
+      <td>
+        <button id="provider_test_btn" type="button">Test</button>
+      </td>
+    </tr>
+  </table>
+  <div id="provider_url" class="provider_hint"></div>
+  <div id="provider_test_status"></div>
+  <table id="provider_test_table"></table>
+
+  <h1>Provider metrics</h1>
+  Choose extra fields to show in the popup (default: none).
+  <div id="provider_metric_choices"></div>
 
   <h1>NAT64 prefixes</h1>
   Prefixes are discovered automatically when you visit these IPv4-only pages using a NAT64 connection:
