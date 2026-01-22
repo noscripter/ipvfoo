@@ -36,6 +36,10 @@ test("format IPv6 /96", () => {
   assert.equal(formatIPv6WithDots("200000000000000000000001"), "2000::1:0.0.0.0");
 });
 
+test("format IPv6 rejects bad length", () => {
+  assert.throws(() => formatIPv6("abcd"), /bad length/);
+});
+
 test("valid IPv4", () => {
   assert.equal(parseIP("0.0.0.0"), "00000000");
   assert.equal(parseIP("255.255.255.255"), "ffffffff");

@@ -4,6 +4,14 @@ function makeStorageArea(initial = {}) {
   let store = { ...initial };
   const emitter = new EventEmitter();
 
+  function withCallback(result, cb) {
+    if (typeof cb === "function") {
+      cb(result);
+      return;
+    }
+    return Promise.resolve(result);
+  }
+
   function notify(changes) {
     if (Object.keys(changes).length) {
       emitter.emit("change", changes);
@@ -31,16 +39,17 @@ function makeStorageArea(initial = {}) {
   }
 
   return {
-    get: async (keys) => buildResult(keys),
-    set: async (items) => {
+    get: (keys, cb) => withCallback(buildResult(keys), cb),
+    set: (items, cb) => {
       const changes = {};
       for (const [key, value] of Object.entries(items)) {
         changes[key] = { oldValue: store[key], newValue: value };
         store[key] = value;
       }
       notify(changes);
+      return withCallback(undefined, cb);
     },
-    remove: async (keys) => {
+    remove: (keys, cb) => {
       const list = Array.isArray(keys) ? keys : [keys];
       const changes = {};
       for (const key of list) {
@@ -50,14 +59,16 @@ function makeStorageArea(initial = {}) {
         }
       }
       notify(changes);
+      return withCallback(undefined, cb);
     },
-    clear: async () => {
+    clear: (cb) => {
       const changes = {};
       for (const key of Object.keys(store)) {
         changes[key] = { oldValue: store[key], newValue: undefined };
       }
       store = {};
       notify(changes);
+      return withCallback(undefined, cb);
     },
     onChanged: {
       addListener: (fn) => emitter.on("change", fn),
@@ -66,15 +77,17 @@ function makeStorageArea(initial = {}) {
   };
 }
 
-function makeChromeStub(manifest) {
-  const sync = makeStorageArea();
-  const local = makeStorageArea();
-  const session = makeStorageArea();
+function makeChromeStub(manifest, initialStorage = {}) {
+  const sync = makeStorageArea(initialStorage.sync || {});
+  const local = makeStorageArea(initialStorage.local || {});
+  const session = makeStorageArea(initialStorage.session || {});
 
   return {
     runtime: {
       getManifest: () =>
         manifest || { manifest_version: 3, background: { service_worker: "background.js" } },
+      getURL: (assetPath) => assetPath,
+      lastError: null,
       onMessage: { addListener: () => {} },
       onConnect: { addListener: () => {} },
       sendMessage: () => {},
@@ -125,8 +138,11 @@ function installFetchStub({ failPng = false } = {}) {
     }
     if (mocks.has(href)) {
       const mock = mocks.get(href);
+      const ok = mock.ok !== undefined
+        ? mock.ok
+        : (mock.status === undefined ? true : (mock.status >= 200 && mock.status < 300));
       return {
-        ok: mock.ok !== undefined ? mock.ok : true,
+        ok,
         status: mock.status !== undefined ? mock.status : 200,
         text: async () => mock.text || "",
         blob: async () => new Blob([new Uint8Array([0])]),
@@ -168,6 +184,11 @@ function installCanvasStub(globalObj) {
   }
 
   globalObj.OffscreenCanvas = FakeCanvas;
+  if (globalObj.HTMLCanvasElement && globalObj.HTMLCanvasElement.prototype) {
+    globalObj.HTMLCanvasElement.prototype.getContext = function() {
+      return makeContext(this.width || 0, this.height || 0);
+    };
+  }
 }
 
 module.exports = {

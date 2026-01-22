@@ -5,6 +5,7 @@ const { loadDom } = require("../helpers/jsdom-env");
 
 test("options UI renders providers, metrics, and actions", async () => {
   let linkOpened = false;
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
   const { dom, chrome, fetchTools } = await loadDom("src/options.html", {
     beforeParse(window) {
       window.browser = {};
@@ -42,6 +43,7 @@ test("options UI renders providers, metrics, and actions", async () => {
 
   const country = document.querySelector("input[data-metric=\"country\"]");
   country.click();
+  await flush();
 
   const stored = chrome.storage.sync._dump();
   assert.equal(stored.providerId, "iplocate");
@@ -70,8 +72,15 @@ test("options UI renders providers, metrics, and actions", async () => {
   dismissBtn.click();
   assert.ok(backCalled);
 
+  const regularDark = document.querySelector("input[name=\"regularColorScheme\"][value=\"darkfg\"]");
+  regularDark.click();
+  await flush();
+  const afterDark = chrome.storage.sync._dump();
+  assert.equal(afterDark.regularColorScheme, "darkfg");
+
   const revertBtn = document.getElementById("revert_btn");
   revertBtn.click();
+  await flush();
   const afterRevert = chrome.storage.sync._dump();
   assert.equal(afterRevert.regularColorScheme, DEFAULT_OPTIONS.regularColorScheme);
 
@@ -82,17 +91,16 @@ test("options UI renders providers, metrics, and actions", async () => {
   firstLink.dispatchEvent(new dom.window.MouseEvent("auxclick", { bubbles: true, button: 1 }));
   assert.ok(linkOpened);
 
-  const regularDark = document.querySelector("input[name=\"regularColorScheme\"][value=\"darkfg\"]");
-  regularDark.click();
-  const afterDark = chrome.storage.sync._dump();
-  assert.equal(afterDark.regularColorScheme, "darkfg");
-
   dom.window.addNAT64("2001:db8::/96");
 
   dom.window.eval("optionsDirty.regularColorScheme = 2;");
   dom.window.eval("handleOptionsChanged({ regularColorScheme: { oldValue: 'auto', newValue: 'lightfg' } })");
   dom.window.eval("handleOptionsChanged({ regularColorScheme: { oldValue: 'lightfg', newValue: 'lightfg' } })");
   dom.window.eval("handleOptionsChanged({ other: { oldValue: 1, newValue: 2 } })");
+
+  select.value = "iplocate";
+  select.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  await flush();
 
   fetchTools.setMock(
     PROVIDERS.iplocate.url,
@@ -113,4 +121,29 @@ test("options UI renders providers, metrics, and actions", async () => {
     dom.window.renderProviderTest(null);
     assert.ok(status.textContent.includes("No result"));
   }
+});
+
+test("options UI fallback branches", async () => {
+  let linkOpened = false;
+  const { dom } = await loadDom("src/options.html", {
+    beforeParse(window) {
+      window.browser = {};
+      window.open = () => { linkOpened = true; };
+      window.matchMedia = () => ({
+        matches: false,
+        addEventListener: () => {},
+      });
+    },
+  });
+  const { document } = dom.window;
+
+  dom.window.eval("METRIC_LABELS.ip = '';");
+  document.getElementById("provider_metric_choices").textContent = "";
+  dom.window.buildMetricCheckboxes();
+  dom.window.updateProviderUI("missing");
+  assert.equal(document.getElementById("provider_url").textContent, "");
+
+  const firstLink = document.querySelector("#ipv4pages a");
+  firstLink.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  assert.equal(linkOpened, false);
 });

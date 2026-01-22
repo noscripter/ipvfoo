@@ -60,7 +60,10 @@ test("popup mobile branches", async () => {
     hash: "#0",
     chromeOverride: chrome,
     beforeParse(window) {
-      window.navigator = { userAgent: "Mobile" };
+      Object.defineProperty(window.navigator, "userAgent", {
+        value: "Mobile",
+        configurable: true,
+      });
       window.browser = {};
     },
   });
