@@ -8,6 +8,11 @@ MANIFEST_C2 := src/manifest/chrome-manifest-mv2.json
 version_from = $(shell sed -n 's/^ *"version": *"\\([0-9.]\\+\\)".*/\\1/p' $(1) | head -n1)
 
 BROWSER ?= chrome
+ifeq ($(BROWSER),chrome)
+UNPACKED ?= 1
+else
+UNPACKED ?= 0
+endif
 
 ifeq ($(BROWSER),firefox)
 MANIFEST_MV3 := ${MANIFEST_F}
@@ -26,6 +31,8 @@ VERSION_MV2 := $(call version_from,${MANIFEST_MV2})
 
 MV3_OUT := ${BUILDDIR}/${NAME}-${VERSION_MV3}-mv3.${PKG_EXT}
 MV2_OUT := ${BUILDDIR}/${NAME}-${VERSION_MV2}-mv2.${PKG_EXT}
+MV3_UNPACKED := ${BUILDDIR}/${NAME}-${VERSION_MV3}-mv3-unpacked
+MV2_UNPACKED := ${BUILDDIR}/${NAME}-${VERSION_MV2}-mv2-unpacked
 
 all: prepare mv3 mv2
 
@@ -48,9 +55,19 @@ prepare:
 
 mv3: prepare
 	$(call build_pack,${MV3_OUT},${MANIFEST_MV3})
+	if [ "$(UNPACKED)" != "0" ]; then \
+		rm -rf ${MV3_UNPACKED}; \
+		mkdir -p ${MV3_UNPACKED}; \
+		cp -R src/* ${MV3_UNPACKED}/; \
+	fi
 
 mv2: prepare
 	$(call build_pack,${MV2_OUT},${MANIFEST_MV2})
+	if [ "$(UNPACKED)" != "0" ]; then \
+		rm -rf ${MV2_UNPACKED}; \
+		mkdir -p ${MV2_UNPACKED}; \
+		cp -R src/* ${MV2_UNPACKED}/; \
+	fi
 
 clean:
 	rm -rf ${BUILDDIR}

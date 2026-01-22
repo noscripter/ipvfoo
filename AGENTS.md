@@ -11,10 +11,11 @@
 - `make prepare`: verifies `src/manifest.json` matches a known manifest and creates `build/`.
 - `make mv3`: build the MV3 package (default `BROWSER=chrome`).
 - `make mv2`: build the MV2 package (default `BROWSER=chrome`).
+- Chrome builds also emit an unpacked directory for loading (`UNPACKED=0` disables).
 - `make all`: build both MV2 and MV3 for the selected browser.
 - `make clean`: remove `build/` outputs.
 
-Example: `make mv2 BROWSER=firefox` writes `build/ipvfoo-<version>-mv2.xpi`.
+Example: `make mv3` writes `build/ipvfoo-<version>-mv3.zip` and `build/ipvfoo-<version>-mv3-unpacked/`.
 
 ## Coding Style & Naming Conventions
 - JavaScript uses `"use strict"`, 2‑space indentation, and semicolons.
