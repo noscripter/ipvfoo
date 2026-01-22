@@ -16,13 +16,30 @@ if (!xpiPath) {
 }
 
 const profileDir = await fs.mkdtemp(path.join(os.tmpdir(), "ipvfoo-firefox-"));
-const profile = new firefox.Profile(profileDir);
-const options = new firefox.Options().setProfile(profile).addArguments("-headless");
+const options = new firefox.Options().setProfile(profileDir).addArguments("-headless");
 
 const driver = await new Builder()
   .forBrowser("firefox")
   .setFirefoxOptions(options)
   .build();
+
+async function resolveProfileRoot(fallback) {
+  try {
+    const caps = await driver.getCapabilities();
+    const capProfile = caps.get("moz:profile");
+    if (typeof capProfile === "string" && capProfile) {
+      try {
+        await fs.access(capProfile);
+        return capProfile;
+      } catch {
+        // ignore; fallback below
+      }
+    }
+  } catch {
+    // ignore; fallback below
+  }
+  return fallback;
+}
 
 async function findExtensionsJson(root) {
   const entries = await fs.readdir(root, { withFileTypes: true });
@@ -39,9 +56,31 @@ async function findExtensionsJson(root) {
   return null;
 }
 
+async function readWebExtensionUUID(profileRoot, addonId) {
+  const files = ["prefs.js", "user.js"];
+  for (const file of files) {
+    const full = path.join(profileRoot, file);
+    try {
+      const raw = await fs.readFile(full, "utf8");
+      const match = raw.match(/extensions\\.webextensions\\.uuids",\\s*"([^"]+)"/);
+      if (!match) continue;
+      const jsonText = match[1].replace(/\\\\/g, "\\").replace(/\\"/g, "\"");
+      const data = JSON.parse(jsonText);
+      if (data && data[addonId]) {
+        return data[addonId];
+      }
+    } catch {
+      // ignore and keep searching
+    }
+  }
+  return null;
+}
+
 async function waitForRootUri(profileRoot, addonId) {
   const start = Date.now();
-  while (Date.now() - start < 15000) {
+  while (Date.now() - start < 30000) {
+    const uuid = await readWebExtensionUUID(profileRoot, addonId);
+    if (uuid) return `moz-extension://${uuid}/`;
     const jsonPath = await findExtensionsJson(profileRoot);
     if (jsonPath) {
       const raw = await fs.readFile(jsonPath, "utf8");
@@ -56,7 +95,8 @@ async function waitForRootUri(profileRoot, addonId) {
 
 try {
   await driver.installAddon(xpiPath, true);
-  const rootUri = await waitForRootUri(profileDir, "ipvfoo@pmarks.net");
+  const profileRoot = await resolveProfileRoot(profileDir);
+  const rootUri = await waitForRootUri(profileRoot, "ipvfoo@pmarks.net");
 
   await driver.get(`${rootUri}options.html`);
   await driver.wait(until.elementLocated(By.id("provider_select")), 5000);
