@@ -435,3 +435,35 @@ function selectWholeAddress(node, sel) {
     sel.addRange(range);
   }
 }
+
+const POPUP_EXPORTS = {
+  beg,
+  connectToExtension,
+  pushAll,
+  pushOne,
+  pushPattern,
+  pushSpillCount,
+  pushProvider,
+  shake,
+  zoomHack,
+  scrollbarHack,
+  minimalCopy,
+  makeRow,
+  makeSslImg,
+  makeSnippedText,
+  unsnipAll,
+  removeStyles,
+  handleMouseDown,
+  handleContextMenu,
+  handleClick,
+  selectWholeAddress,
+  isSpuriousSelection,
+  makeImg,
+};
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = POPUP_EXPORTS;
+}
+if (typeof globalThis !== "undefined") {
+  Object.assign(globalThis, POPUP_EXPORTS);
+}

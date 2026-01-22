@@ -34,6 +34,23 @@ function buildProviderSelect() {
   }
 }
 
+const OPTIONS_EXPORTS = {
+  buildProviderSelect,
+  buildMetricCheckboxes,
+  updateProviderUI,
+  getSelectedMetrics,
+  setSelectedMetrics,
+  renderProviderTest,
+  runProviderTest,
+};
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = OPTIONS_EXPORTS;
+}
+if (typeof globalThis !== "undefined") {
+  Object.assign(globalThis, OPTIONS_EXPORTS);
+}
+
 function buildMetricCheckboxes() {
   for (const key of METRIC_ORDER) {
     const label = document.createElement("label");

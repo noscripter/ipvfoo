@@ -559,3 +559,57 @@ if (chrome.runtime.getManifest().background.service_worker &&
     chrome.runtime.sendMessage({darkModeInteractive: event.matches});
   });
 }
+
+function getOptionsStorage() {
+  return optionsStorage;
+}
+
+const COMMON_EXPORTS = {
+  MANIFEST_VERSION,
+  USE_CALLBACKS,
+  chromeAsync,
+  FLAG_SSL,
+  FLAG_NOSSL,
+  FLAG_UNCACHED,
+  FLAG_CONNECTED,
+  FLAG_WEBSOCKET,
+  FLAG_NOTWORKER,
+  IPV4_ONLY_DOMAINS,
+  newMap,
+  clearMap,
+  sleep,
+  removeChildren,
+  spriteImgReady,
+  buildIcon,
+  extractIP,
+  METRIC_LABELS,
+  METRIC_ORDER,
+  PROVIDERS,
+  PROVIDER_ORDER,
+  normalizeMetricSelection,
+  parseMetricSelection,
+  providerMetricsFor,
+  normalizeMetrics,
+  fetchProviderInfo,
+  formatProviderRows,
+  DEFAULT_OPTIONS,
+  NAT64_KEY,
+  NAT64_DEFAULTS,
+  options,
+  optionsDirty,
+  optionsReady,
+  handleOptionsChanged,
+  watchOptions,
+  setOptions,
+  addNAT64,
+  addPackedNAT64,
+  revertNAT64,
+  getOptionsStorage,
+};
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = COMMON_EXPORTS;
+}
+if (typeof globalThis !== "undefined") {
+  Object.assign(globalThis, COMMON_EXPORTS);
+}

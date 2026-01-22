@@ -1,13 +1,11 @@
-const test = require("node:test");
 const assert = require("node:assert/strict");
-const { loadScript } = require("../helpers/load-script");
+const {
+  parseIP,
+  formatIPv6,
+  formatIPv6WithDots,
+} = require("../../src/iputil");
 
-if (!global.__IPVFOO_IPUTIL__) {
-  loadScript("src/iputil.js");
-  global.__IPVFOO_IPUTIL__ = true;
-}
-
-test("parseIP and formatIPv6 basics", () => {
+async function run() {
   const cases = [
     ["::", "00000000000000000000000000000000", "::", "::0.0.0.0"],
     [
@@ -29,20 +27,14 @@ test("parseIP and formatIPv6 basics", () => {
     assert.equal(formatIPv6(output), noDots);
     assert.equal(formatIPv6WithDots(output), withDots);
   }
-});
 
-test("format IPv6 /96", () => {
   assert.equal(formatIPv6("200000000000000000000001"), "2000::1:0:0");
   assert.equal(formatIPv6WithDots("200000000000000000000001"), "2000::1:0.0.0.0");
-});
 
-test("valid IPv4", () => {
   assert.equal(parseIP("0.0.0.0"), "00000000");
   assert.equal(parseIP("255.255.255.255"), "ffffffff");
   assert.equal(parseIP("1.2.3.4"), "01020304");
-});
 
-test("bogus inputs", () => {
   const bogusInputs = [
     undefined,
     null,
@@ -121,4 +113,8 @@ test("bogus inputs", () => {
     }
     assert.ok(caught, `input ${value} should have failed`);
   }
-});
+
+  assert.throws(() => formatIPv6("abcd"));
+}
+
+module.exports = { run };

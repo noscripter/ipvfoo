@@ -204,3 +204,20 @@ function hextetsToIPv6String(hextets) {
   }
   return out;
 }
+
+const IPUTIL_EXPORTS = {
+  parseIP,
+  formatIPv6,
+  formatIPv6WithDots,
+  textToPackedIPv4,
+  textToPackedIPv6,
+  compressLongestRunOfZeroes,
+  hextetsToIPv6String,
+};
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = IPUTIL_EXPORTS;
+}
+if (typeof globalThis !== "undefined") {
+  Object.assign(globalThis, IPUTIL_EXPORTS);
+}
