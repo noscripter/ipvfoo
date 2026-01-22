@@ -7,7 +7,7 @@ import buildTools from "../helpers/build.js";
 
 const { ensureBuilt, findXpi } = buildTools;
 
-const mv = process.env.MV || "3";
+const mv = process.env.MV || "2";
 ensureBuilt({ browser: "firefox", mv });
 
 const xpiPath = findXpi(mv);
@@ -16,12 +16,60 @@ if (!xpiPath) {
 }
 
 const profileDir = await fs.mkdtemp(path.join(os.tmpdir(), "ipvfoo-firefox-"));
-const options = new firefox.Options().setProfile(profileDir).addArguments("-headless");
+const addonId = "ipvfoo@pmarks.net";
+const addonUuid = "f00dface-f00d-face-f00d-facef00df00d";
+const options = new firefox.Options()
+  .setProfile(profileDir)
+  .setPreference("extensions.webextensions.uuids", JSON.stringify({ [addonId]: addonUuid }))
+  .addArguments("-headless");
 
 const driver = await new Builder()
   .forBrowser("firefox")
   .setFirefoxOptions(options)
   .build();
+
+async function getRootUriFromAddonManager(addonId) {
+  try {
+    await driver.setContext(firefox.Context.CHROME);
+    const result = await driver.executeAsyncScript((id, done) => {
+      try {
+        let mod = null;
+        if (typeof ChromeUtils !== "undefined" && ChromeUtils.import) {
+          mod = ChromeUtils.import("resource://gre/modules/AddonManager.jsm");
+        } else if (typeof Components !== "undefined" && Components.utils && Components.utils.import) {
+          mod = Components.utils.import("resource://gre/modules/AddonManager.jsm", {});
+        }
+        if (!mod || !mod.AddonManager) {
+          done(null);
+          return;
+        }
+        mod.AddonManager.getAddonByID(id).then((addon) => {
+          if (!addon) {
+            done(null);
+            return;
+          }
+          try {
+            const uri = addon.getResourceURI("").spec;
+            done(uri);
+          } catch {
+            done(null);
+          }
+        }, () => done(null));
+      } catch {
+        done(null);
+      }
+    }, addonId);
+    return result;
+  } catch {
+    return null;
+  } finally {
+    try {
+      await driver.setContext(firefox.Context.CONTENT);
+    } catch {
+      // ignore
+    }
+  }
+}
 
 async function resolveProfileRoot(fallback) {
   try {
@@ -79,6 +127,8 @@ async function readWebExtensionUUID(profileRoot, addonId) {
 async function waitForRootUri(profileRoot, addonId) {
   const start = Date.now();
   while (Date.now() - start < 30000) {
+    const chromeRoot = await getRootUriFromAddonManager(addonId);
+    if (chromeRoot) return chromeRoot;
     const uuid = await readWebExtensionUUID(profileRoot, addonId);
     if (uuid) return `moz-extension://${uuid}/`;
     const jsonPath = await findExtensionsJson(profileRoot);
@@ -94,9 +144,10 @@ async function waitForRootUri(profileRoot, addonId) {
 }
 
 try {
-  await driver.installAddon(xpiPath, true);
+  const installedId = await driver.installAddon(xpiPath, true);
   const profileRoot = await resolveProfileRoot(profileDir);
-  const rootUri = await waitForRootUri(profileRoot, "ipvfoo@pmarks.net");
+  const rootUri = `moz-extension://${addonUuid}/` ||
+    await waitForRootUri(profileRoot, installedId || addonId);
 
   await driver.get(`${rootUri}options.html`);
   await driver.wait(until.elementLocated(By.id("provider_select")), 5000);

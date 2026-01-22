@@ -88,6 +88,7 @@ function makeChromeStub(manifest, initialStorage = {}) {
         manifest || { manifest_version: 3, background: { service_worker: "background.js" } },
       getURL: (assetPath) => assetPath,
       lastError: null,
+      openOptionsPage: () => {},
       onMessage: { addListener: () => {} },
       onConnect: { addListener: () => {} },
       sendMessage: () => {},

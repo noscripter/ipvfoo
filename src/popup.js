@@ -42,6 +42,16 @@ window.onload = async function() {
   if (IS_MOBILE) {
     document.getElementById("mobile_footer").style.display = "flex";
   }
+  const optionsBtn = document.getElementById("options_btn");
+  if (optionsBtn) {
+    optionsBtn.addEventListener("click", () => {
+      if (chrome.runtime && typeof chrome.runtime.openOptionsPage === "function") {
+        chrome.runtime.openOptionsPage();
+      } else {
+        window.open("options.html");
+      }
+    });
+  }
   connectToExtension();
 };
 

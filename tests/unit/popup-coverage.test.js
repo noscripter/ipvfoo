@@ -49,6 +49,8 @@ test("popup beg button requests permission", async () => {
     requested = true;
     return true;
   };
+  let optionsOpened = false;
+  chrome.runtime.openOptionsPage = () => { optionsOpened = true; };
   let closed = false;
   const { dom } = await loadDom("src/popup.html", {
     hash: "#1",
@@ -65,6 +67,26 @@ test("popup beg button requests permission", async () => {
   await delay(0);
   assert.ok(requested);
   assert.ok(closed);
+
+  const optionsBtn = dom.window.document.getElementById("options_btn");
+  optionsBtn.click();
+  assert.ok(optionsOpened);
+});
+
+test("popup options button fallback", async () => {
+  const chrome = makeChromeStub();
+  delete chrome.runtime.openOptionsPage;
+  let opened = null;
+  const { dom } = await loadDom("src/popup.html", {
+    hash: "#2",
+    chromeOverride: chrome,
+    beforeParse(window) {
+      window.open = (url) => { opened = url; };
+    },
+  });
+  const optionsBtn = dom.window.document.getElementById("options_btn");
+  optionsBtn.click();
+  assert.equal(opened, "options.html");
 });
 
 test("popup mobile rendering paths", async () => {

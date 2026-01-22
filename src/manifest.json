@@ -9,8 +9,13 @@
     "128": "icon128.png"
   },
   "background": {
-    "scripts": ["iputil.js", "common.js", "background.js"],
-    "persistent": true
+    "scripts": ["iputil.js", "common.js", "background.js"]
+  },
+  "applications": {
+    "gecko": {
+      "id": "ipvfoo@pmarks.net",
+      "strict_min_version": "115.0"
+    }
   },
   "page_action": {
     "default_icon": {
@@ -18,7 +23,8 @@
     }
   },
   "options_ui": {
-    "page": "options.html"
+    "page": "options.html",
+    "browser_style": false
   },
   "permissions": [
     "contextMenus",
